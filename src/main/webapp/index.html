@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+
+    <title>reveal.js - The HTML Presentation Framework</title>
+
+    <meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+    <meta name="author" content="Hakim El Hattab">
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <link rel="stylesheet" href="css/reveal.min.css">
+    <link rel="stylesheet" href="css/theme/default.css" id="theme">
+
+    <!-- For syntax highlighting -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
+
+    <!-- If the query includes 'print-pdf', include the PDF print sheet -->
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = 'css/print/pdf.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+
+    <!--[if lt IE 9]>
+	<script src="lib/js/html5shiv.js"></script>
+	<![endif]-->
+  </head>
+
+  <body>
+
+    <div class="reveal">
+
+      <!-- Any section element inside of this container is displayed as a slide -->
+      <div class="slides">
+	<section>
+	  <h1>SBT</h1>
+	  <h3>For Fun and Profit</h3>
+	</section>
+
+	<section>
+	  Research Shows:
+	  <blockquote>Developers spend over <em>95%</em> of their working hours interacting with their build tool</blockquote>
+	  <br>
+	  <div class="fragment">
+	    <h4>Source:</h4>
+	    <a href="#" class="image">
+	      <img src="http://imgs.xkcd.com/comics/compiling.png"/ />
+	    </a>
+	  </div>
+
+	</section>
+
+	<section>
+	  <h3>SBT Features: Out of the box</h3>
+	  <ul>
+	    <li >Incremental Scala/Java Compilation</li>
+	    <li >Dependency management using Ivy(for now)</li>
+	    <li >In process isolated JVM code execution: Tests, Web servers, etc</li>
+	    <li >Highly extensible: HUGE number of plugins</li>
+	  </ul>
+	</section>
+
+	<section>
+	  <h3>SBT Design Goals:</h3>
+	  <ol>
+	    <li class="fragment">Safety</li>
+	    <li class="fragment">Extendability</li>
+	    <li class="fragment">Performance</li>
+	    <li class="fragment">Interactivity</li>
+	  </ol>
+	  <br/>
+	  <p>
+	    <small class="fragment">* Notice the absence of the word simple.</small>
+	  </p>
+	</section>
+
+	<section>
+	  <h3>SBT data model</h3>					
+	  <p class="fragment">An SBT build definition is:</p>
+	  <ul>
+	    <li class="fragment">
+	      A set of compiled scala classes
+	      <ul>
+		<li class="fragment">Wait a second...</li>
+		<li class="fragment">RECURSION!!!!</li>
+	      </ul>
+	    </li>
+	    <li class="fragment">Strongly Typed Monadic Dictionary</li>
+	  </ul>
+	</section>
+	<section>
+	  <h3>SBT data model</h3>					
+	  <ul>
+	    <li class="fragment">&lt;root&gt;/project directory is built</li>
+	    <li class="fragment">Compiled classes are scanned for objects that repesent the SBT data model</li>
+	  </ul>
+
+	</section>
+	<section>
+	  <h3>SBT data model: Structure</h3>					
+	  <ul>
+	    <li >This presentation completely ignores any version of SBT before 0.11</li>
+	    <li class="fragment">SBT looks for one class extending Build</li>
+	    <li class="fragment">Build class is scanned for Projects</li>
+	    <li class="fragment">Projects have Configurations and Settings</li>
+	    <li class="fragment">Projects and Builds have other stuff too. See Scaladocs</li>	    
+	    <li class="fragment">Settings are the Typed Monadic Dictionary mentioned before</li>
+	  </ul>
+	</section>
+
+
+	<section>
+	  <h3>SBT data model: Example</h3>					
+	  <pre><code data-trim contenteditable>PB.protobufConfig <<= baseDirectory( _/"protobuf/")</code></pre><p>Given a key and a function, evaluate the function once the value of the key becomes available. Monadic design allows for thread safety and explicit dependency tracking</p>
+
+	</section>
+	<section>
+	  <h3>SBT data model in detail</h3>
+	  <pre>
+	    <code contenteditable>
+val thing: Def.Setting[Initialize[File]] = 
+  (PB.protobufConfig: Def.SettingKey[File]) <<=
+      (baseDirectory: Def.SettingKey[File]).apply{x: File => x/"pro"}
+							   </code>
+	  </pre>
+	</section>
+
+	<section>
+	  <h2>SBT data model in even more detail</h2>
+	  <ul>
+	    <li>Setting[_]/SettingKey[_] = values computed once at load time e.g. <code>baseDirectory</code></li>
+	    <li>Task[_]/TaskKey[_] = computed on every request e.g. compiler</li>
+	    <li>InputTask[_]/InputKey[_] = requires user input e.g. run-main</li>
+	    <li>Scopes allows you to re-use keys within multiple contexts: e.g. each project has it's own compile task. However, it is not necessary to statically define all of those keys.
+	  </ul>
+	</section>
+
+
+	<section>
+	  <h2>Interacting with SBT</h2>
+	  <ul>
+	    <li>Running SBT from a shell everytime you need it to do something is incredibly cumbersome.</li>
+	    <li>SBT is designed to be interactive, Remember?</li>
+	    <li>The SBT REPL has a list of nifty commands, of which <code>help</code> is the only one that you need to know apriori</li>
+	    <li>Everything that isn't listed in help, SBT tries to map to an InputKey or a TaskKey</li>
+	    <li>There is a grammar for this conversion</li>
+	  </ul>
+	</section>
+	<section>
+	  <h2>Interacting with SBT</h2>
+	  <code data-trim contenteditable>{&lt;build-uri&gt;}&lt;project-id&gt;/config:intask::key</code><br><br>
+	  Most of these can be omitted e.g. <code>compile</code> refers to the current project's default config's compile task
+	</section>
+	<section>
+	  <h2>Interacting with SBT: Tips</h2>
+	  <ul>
+	    <li><code>inspect</code> can show you a lot of useful info about a task or setting</li>
+	    <li><code>inspect tree</code> is insanely cool</li>
+	    <li><code>show &lt;key&gt;</code> will output the value of task/setting while <code>inspect</code> only shows metadata
+	  </ul>
+	</section>
+	<section>
+	  <h2>Interacting with SBT: Tips</h2>
+	  <ul>
+	    <li><code>~ command</code> listens to filesystem changes and triggers execution of <code>command</code> on change</li>
+	    <li><code> command1; command2</code> executes command2 after completing command1</li>
+	    <li>consequently <code>~ command1; command2</code> will run that sequence of commands every time an FS change is detected</li>
+	  </ul>
+	</section>
+	<section>
+	  <h2>Interacting with SBT: Tips</h2>
+	  <ul>
+	    <li>SBT allows you to change settings from the REPL</li>
+	    <li><code>set logLevel in Global := Level.Warn</code> changes the logging level </li>
+	    <li>Everything after the set keyword is plain old Scala</li>
+	  </ul>
+	</section>
+	<section>
+	  <h2>Extending SBT: It's just Scala</h2>
+	  <ul>
+	    <li>Simplest way to extend SBT is to put Scala code in the project dir</li>
+	    <li>Pro: Easy to get going</li>
+	    <li>Con: Has to compile everytime the project is loaded</li>
+	    <li>Con: Cool extension, bro. I wrote that one too.</li>
+	    <li class="fragment">Didn't have time for the scumbag Steve here</li>
+	  </ul>
+	</section>
+	<section>
+	  <h2>Extending SBT: Plugins</h2>
+	  <ul>
+	    <li>Plugins are little more than regular jar dependencies</li>
+	    <li>Build dependencies are scanned for classes extending Plugin</li>
+	    <li>Plugins can auto-inject settings. See Scaladoc for details</li>
+	  </ul>
+	</section>
+	<section>
+	  <h2>Getting Help</h2>
+	  <ul>
+	    <li>The <code>show</code> and <code>inspect</code> commands</li>
+	    <li>SBT Docs: http://www.scala-sbt.org/release/docs/index.html</li>
+	    <li>SBT Scaladoc: http://www.scala-sbt.org/0.13.2/api/index.html#package</li>
+	  </ul>
+	</section>
+<!-- 	<section> -->
+<!-- 	  <h2>Lab</h2> -->
+<!-- 	  <p>Add this to root/project/plugins.sbt(don't miss the newlines)</p> -->
+<!-- 	  <pre> -->
+<!-- 	    <code contenteditable> -->
+<!-- resolvers += "thing" at "http://stuff:7071/" -->
+
+<!-- addPlugin("com.yieldmo.sbt","lab","0.1") -->
+<!-- 	    </code>	     -->
+<!-- 	  </pre> -->
+<!-- 	  <p>The plugin exposes a <code>post</code> task. Configure the plugin to post your name to http://host:7071/lab</p> -->
+<!-- 	  <div > -->
+<!-- 	    <ul id="results"> -->
+	      
+<!-- 	    </ul> -->
+<!-- 	  </div> -->
+<!-- 	</section> -->
+	
+	<section>
+	  <h2>YieldMo Build</h2>
+	  <p>We have a set of extensions we've added to the build</p>
+	  <ul>
+	    <li>First of: We're running SBT v0.13.2 on top of Scala 2.10(Our code is build with 2.9)</li>
+	    <div class="fragment">
+	    <li>Integration testing e.g. <code>&lt;project&gt;/it:test</code> will run tests defined in .../it/src/ in isolated JVMs</li>
+	    <ul>
+	      <li>The idea is some tests require static/heavy resources</li>
+	      <li>Examples: Networking code tests, Tests that need an active HBase cluster, Tests that use the DB</li>
+	    </ul>
+	    </div>
+	    <li class="fragment">Debug Configuration: same as the test config but runs things in a forked VM with debug flags</li>
+	    <div class="fragment">
+	      <li >Various YieldMo specific parameters/tweaks</li>
+	      <li >Clean Trigger: touching ./clean_trigger will cause a clean to be run before compile</li>
+	    </div
+	  </ul>
+	</section>
+	<section>
+	  <h2>Q&A</h2>
+	</section>
+
+      </div>
+
+    </div>
+
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.min.js"></script>
+
+    <script>
+
+      // Full list of configuration options available here:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+      controls: true,
+      progress: true,
+      history: true,
+      center: true,
+
+      theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+      transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+      // Parallax scrolling
+      // parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
+      // parallaxBackgroundSize: '2100px 900px',
+
+      // Optional libraries used to extend on reveal.js
+      dependencies: [
+      { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+      { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+      { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+      { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+      { src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+      { src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+      ]
+      });
+
+    </script>
+    <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.js"></script> -->
+    <!-- <script src="js/lab.js"></script> -->
+
+  </body>
+</html>
